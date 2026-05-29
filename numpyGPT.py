@@ -76,12 +76,12 @@ class Tokenizer:
 
         self.vocab = sorted(self.vocab)
 
-        self.vocab.add(self.EOS_TOKEN)
+        self.vocab.append(self.EOS_TOKEN)
 
         for i , token in enumerate(self.vocab):
           self.stoi[token] = i
           self.itos[i] = token
-
+        
         return self.vocab
     
     def encode(self , text):
@@ -152,24 +152,25 @@ class Attention:
     def forward(self , vector):
 
         #Q , K , V
-        Q = vector @ self.WQ
-        K = vector @ self.WK
-        V = vector @ self.WV
+        Q = vector @ self.paramters["WQ"]
+        K = vector @ self.paramters["WK"]
+        V = vector @ self.paramters["WV"]
 
         B , T , d_model = Q.shape
         n_heads = 8
         head_dim = d_model // n_heads
      
-        Q = Q.reshape(B, T, n_heads, head_dim).transpose(0, 2, 1, 3)
-        K = K.reshape(B, T, n_heads, head_dim).transpose(0, 2, 1, 3)
-        V = V.reshape(B, T, n_heads, head_dim).transpose(0, 2, 1, 3)
+        #change 02
+        Q_split = Q.reshape(B, T, n_heads, head_dim).transpose(0, 2, 1, 3)
+        K_split = K.reshape(B, T, n_heads, head_dim).transpose(0, 2, 1, 3)
+        V_split = V.reshape(B, T, n_heads, head_dim).transpose(0, 2, 1, 3)
       
         outputs = []
         attentions_weights = []
         for h in range(n_heads):
-          qh = Q[:, h]
-          kh = K[:, h]
-          vh = V[:, h]   
+          qh = Q_split[:, h]
+          kh = K_split[:, h]
+          vh = V_split[:, h]   
 
           key_dimension = qh.shape[-1]
      
@@ -205,22 +206,56 @@ class Attention:
         head_dim = d_model // n_heads
 
         upstream_gradient = upstream_gradient.reshape(B, T, n_heads, head_dim).transpose(0,2,1,3)
-        attention_weight = attention_weight.reshape(B, T, n_heads, T).transpose(0,2,1,3)  # 注意 A 的形状
+        attention_weight = attention_weight.reshape(B, T, n_heads, T).transpose(0,2,1,3)  # attention A'shape
+
+        #change 03 : add a V'reshape
+        V = V.reshape(B, T, n_heads, head_dim).transpose(0,2,1,3)
+
+        #change 04 : add a K'reshape
+        K = K.reshape(B, T, n_heads, head_dim).transpose(0,2,1,3)
+        
+        #change 05 : add a Q'reshape
+        Q = Q.reshape(B, T, n_heads, head_dim).transpose(0,2,1,3)
 
         d_Q_list , d_K_list , d_V_list = [], [], [] 
 
         for h in range(n_heads):
              
              d_V = attention_weight[:,h].transpose(0,2,1) @ upstream_gradient[:,h]
-             d_A = upstream_gradient[:,h] @ V.transpose(0,2,1)
+
+             #fixing code
+             print(f'upstream_gradient_shape:{upstream_gradient.shape}')
+             print(f'upstream_gradient[:,h]_shape:{upstream_gradient[:,h].shape}')
+             print(f'V_shape:{V.shape}')
+             print(f'V[:,h]_shape:{V[:,h].shape}')
+             print(f'V[:,h].transpose(0,2,1)_shape:{V[:,h].transpose(0,2,1).shape}')
+
+             #change 03 : add[:,h] behind V
+             d_A = upstream_gradient[:,h] @ V[:,h].transpose(0,2,1)
 
              d_S = attention_weight[:,h] * (d_A - np.sum(d_A * attention_weight[:,h], axis=-1, keepdims=True))
+
              dk = Q[:,h].shape[-1]
 
+             #fixing  code :
+             print(f'Q_shape:{Q.shape}')
+             print(f'Q[:,h]_shape:{Q[:,h].shape}')
+             
              d_M = d_S / np.sqrt(dk)
+
+             #fixing code :
+             print(f'd_M_shape:{d_M.shape}')
+             print(f'd_M.transpose(0,2,1)_shape:{d_M.transpose(0,2,1).shape}')
+
              d_Q = d_M @ K[:,h]
+
+             #fixing code :
+             print(f'd_Q_shape:{d_Q.shape}')
+             print(f'Q[:,h]_shape:{Q[:,h].shape}')
+
              d_K = d_M.transpose(0,2,1) @ Q[:,h]
 
+              
              d_Q_list.append(d_Q)
              d_K_list.append(d_K)
              d_V_list.append(d_V)
@@ -233,10 +268,11 @@ class Attention:
         d_K_total = d_K_total.transpose(0,2,1,3).reshape(B,T,d_model)
         d_V_total = d_V_total.transpose(0,2,1,3).reshape(B,T,d_model)
 
+        #change 06 : use paramters module
         grad_attention = (
-          d_Q_total @ self.WQ.T +
-          d_K_total @ self.WK.T +
-          d_V_total @ self.WV.T
+          d_Q_total @ self.paramters["WQ"].T +
+          d_K_total @ self.paramters["WK"].T +
+          d_V_total @ self.paramters["WV"].T
              )
 
         dW_Q_total = Q.transpose(0,2,1,3).reshape(B,T,d_model).transpose(0,2,1) @ d_Q_total
@@ -247,6 +283,7 @@ class Attention:
         dW_K_total = np.mean(dW_K_total, axis=0)
         dW_V_total = np.mean(dW_V_total, axis=0)
        
+
         self.gradients = {
             "WQ":dW_Q_total,
             "WK":dW_K_total,
@@ -277,19 +314,19 @@ class Layernorm:
         mean = np.mean(residual_output,axis=-1,keepdims=True)
         var = np.var(residual_output,axis=-1,keepdims=True,ddof=0)
         normalized_output = (residual_output - mean) / np.sqrt(var + 1e-5)
-        layernorm_output = self.y_norm * normalized_output + self.b_norm
+        layernorm_output = self.paramters["y_norm"] * normalized_output + self.paramters["b_norm"]
 
-        self.cache = (residual_output , normalized_output , self.y_norm)
+        self.cache = (residual_output , normalized_output , self.paramters["y_norm"])
 
         return layernorm_output
     
     def backward(self , upstream_gradient):
 
-        residual_output , normalized_output , self.y_norm = self.cache
+        residual_output , normalized_output , self.paramters["y_norm"] = self.cache
 
         d_y_norm = np.sum(upstream_gradient * normalized_output,axis=0) 
         d_b_norm = np.sum(upstream_gradient , axis=0)
-        grad_normalized = upstream_gradient * self.y_norm
+        grad_normalized = upstream_gradient * self.paramters["y_norm"]
         d = residual_output.shape[1]
         var = np.var(residual_output,axis=1,keepdims=True,ddof=0)
         std = np.sqrt(var + 1e-5)
@@ -326,9 +363,9 @@ class FFN:
 
     def forward(self , layernorm_output):
 
-        ffn_hidden_linear = layernorm_output @ self.W_1 + self.b_1
+        ffn_hidden_linear = layernorm_output @ self.paramters["W_1"] + self.paramters["b_1"]
         ffn_hidden_activation = np.maximum(0, ffn_hidden_linear) 
-        ffn_output = ffn_hidden_activation @ self.W_2 + self.b_2 
+        ffn_output = ffn_hidden_activation @ self.paramters["W_2"] + self.paramters["b_2"]
         
         self.cache = (ffn_hidden_activation , ffn_hidden_linear , layernorm_output)
 
@@ -341,12 +378,12 @@ class FFN:
         d_W_2 = ffn_hidden_activation.transpose(0,2,1) @ upstream_gradient 
         d_W_2 = np.sum(d_W_2,axis=0)
         d_b_2 = np.sum(upstream_gradient , axis=0 , keepdims=True)
-        d_A1 = upstream_gradient @ self.W_2.T
+        d_A1 = upstream_gradient @ self.paramters["W_2"].T
         d_Z1 = d_A1 * (ffn_hidden_linear > 0)
         d_W_1 = layernorm_output.transpose(0,2,1) @ d_Z1
         d_W_1 = np.sum(d_W_1,axis=0) 
         d_b_1 = np.sum(d_Z1 , axis=0 , keepdims=True)
-        grad_ffn = d_Z1 @ self.W_1.T
+        grad_ffn = d_Z1 @ self.paramters["W_1"].T
 
         self.gradients = {
             "W_1": d_W_1 ,
@@ -430,14 +467,18 @@ class Model:
         return logit
 
     def  backward(self , dx):
+        #change 01
+        dx = dx @ self.token_embedding 
 
         for block in reversed(self.blocks):
             dx = block.backward(dx)
 
+        print(f'self.cache_ids_shape:{self.cache_ids.shape}')
+
         B , T = self.cache_ids.shape
 
         d_token_embedding = np.zeros_like(self.token_embedding)
-        d_position_embedding = np.zeros_like(self,self.position_embedding)
+        d_position_embedding = np.zeros_like(self.position_embedding)
 
         for b in range(B):
             for t in range(T):
@@ -608,4 +649,35 @@ class AdamW:
       #change the weight
        for p , new_p in zip(param , new_weight):
            p[:] = new_p
+
+#training loop
+text = 'i so fucking love you very much'
+
+tokenizer = Tokenizer()
+vocab = tokenizer.train(text)
+ids = tokenizer.encode(text)
+
+print(len(ids))
+print(vocab)
+print(len(vocab))
+
+for i in range(10):
+
+ model = Model()
+ logit = model.forward(ids)
+
+ crossentropyloss = CrossEntropyloss()
+ loss = crossentropyloss.forward(logit)
+
+ print(loss)
+
+ dlogit = crossentropyloss.backward()
+
+ print(dlogit.shape)
+
+ dx = model.backward(dlogit)
+
+ adamw = AdamW()
+ optimizer = adamw.step()
+
 
