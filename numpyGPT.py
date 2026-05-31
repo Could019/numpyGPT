@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import softmax
 import pickle
+import matplotlib.pyplot as plt
 
 class Tokenizer:
      
@@ -18,6 +19,7 @@ class Tokenizer:
 
         new_data = []
         i = 0
+       
         while i < len(data):
           if i < (len(data) - 1) and (data[i] , data[i +1]) == freq_pair:
               new_data.append(data[i] + data[i + 1])
@@ -33,7 +35,12 @@ class Tokenizer:
 
         self.vocab = set(data)
 
-        while True:
+        print("DEBUG data:", data, type(data))
+        
+        MAX_MERGES = 10
+        MAX_TOKEN_LEN = 4
+
+        while len(self.merges) < MAX_MERGES:
           #create the pair
           pairs = []
           for i in range(len(data) - 1):
@@ -46,7 +53,7 @@ class Tokenizer:
                count[p] += 1
              else:
                count[p] = 1
-    
+
           max_count = 0
           freq_pair = None
 
@@ -58,7 +65,7 @@ class Tokenizer:
           if freq_pair is None:
             break
 
-          if max_count <= 1:
+          if max_count <= 3:
             break
 
           self.merges.append(freq_pair)
@@ -70,7 +77,7 @@ class Tokenizer:
              break
 
         for pair in self.merges:
-          
+
           new_vocab = pair[0] + pair[1]
           self.vocab.add(new_vocab)
 
@@ -82,7 +89,14 @@ class Tokenizer:
           self.stoi[token] = i
           self.itos[i] = token
         
+        print(f'self.merges{self.merges}')
+        print(f'self.vocab{self.vocab}')
+        print(f'stoi{self.stoi}')
+        print(f'itos{self.itos}')
+
         return self.vocab
+
+       
     
     def encode(self , text):
        
@@ -102,9 +116,11 @@ class Tokenizer:
         ids = self.cache
         batch_list = []
         target_list = []
+        max_start  = len(ids) - T - 1
 
         for _ in range(B):
-           start = np.random.randint(0,11)
+           
+           start = np.random.randint(0,max_start)
            batch = ids[start : start + T]
            target = ids[start + 1 : start + 1 + T]
 
@@ -160,9 +176,9 @@ class Attention:
 
         #Attention param
         self.paramters = {
-        "WQ" : np.random.rand(512 , 512),
-        "WK" : np.random.rand(512 , 512),
-        "WV" : np.random.rand(512 , 512)
+        "WQ" : np.random.randn(512 , 512)*0.02,
+        "WK" : np.random.randn(512 , 512)*0.02,
+        "WV" : np.random.randn(512 , 512)*0.02
         }
         #Attention cache
         self.cache = None
@@ -199,7 +215,7 @@ class Attention:
 
           future_token_mask = np.triu(np.ones_like(attention_score_raw), k=1).astype(bool)
 
-          attention_score_masked = np.where(future_token_mask, -np.inf , attention_score_raw)
+          attention_score_masked = np.where(future_token_mask, -1e10 , attention_score_raw)
           attention_score_stable = attention_score_masked - np.max(attention_score_masked , axis=-1 , keepdims=True)
           attention_weight = softmax(attention_score_stable , axis=-1)
 
@@ -214,13 +230,13 @@ class Attention:
 
         attention_weight = np.stack(attentions_weights, axis=1)
 
-        self.cache = (Q , K , V , attention_weight)
+        self.cache = (Q , K , V , attention_weight , vector)
 
         return attention_output 
     
     def backward(self , upstream_gradient):
 
-        Q , K , V , attention_weight = self.cache
+        Q , K , V , attention_weight , vector = self.cache
 
         B, T, d_model = Q.shape
         n_heads = 8
@@ -274,14 +290,11 @@ class Attention:
           d_V_total @ self.paramters["WV"].T
              )
 
-        dW_Q_total = Q.transpose(0,2,1,3).reshape(B,T,d_model).transpose(0,2,1) @ d_Q_total
-        dW_K_total = K.transpose(0,2,1,3).reshape(B,T,d_model).transpose(0,2,1) @ d_K_total
-        dW_V_total = V.transpose(0,2,1,3).reshape(B,T,d_model).transpose(0,2,1) @ d_V_total
-
-        dW_Q_total = np.mean(dW_Q_total, axis=0)
-        dW_K_total = np.mean(dW_K_total, axis=0)
-        dW_V_total = np.mean(dW_V_total, axis=0)
-       
+        #change 09 : a math wrong
+        X = vector.reshape(-1 , d_model)
+        dW_Q_total = X.T @ d_Q_total.reshape(-1 , d_model)
+        dW_K_total = X.T @ d_K_total.reshape(-1 , d_model)
+        dW_V_total = X.T @ d_V_total.reshape(-1 , d_model)
 
         self.gradients = {
             "WQ":dW_Q_total,
@@ -348,11 +361,11 @@ class FFN:
 
         #FFN param
         self.paramters = {
-        "W_1" : np.random.rand(512, 2048),
-        "b_1" : np.random.rand(2048,),
+        "W_1" : np.random.randn(512, 2048)*0.02,
+        "b_1" : np.random.randn(2048,)*0.02,
 
-        "W_2" : np.random.rand(2048, 512),
-        "b_2" : np.random.rand(512,)
+        "W_2" : np.random.randn(2048, 512)*0.02,
+        "b_2" : np.random.randn(512,)*0.02
         }
         #FFN cache
         self.cache = None
@@ -437,19 +450,24 @@ class Model:
         self.blocks = [
             TransformerBlock()
             ]
-        
-        self.token_embedding = np.random.rand(len(vocab) , 512)
+     
+        self.token_embedding = np.random.randn(len(vocab) , 512)*0.02
 
-        self.position_embedding = np.random.rand(len(ids), 512)
+        MAX_LEN = 512
+        self.position_embedding = np.random.randn(MAX_LEN, 512)*0.02
 
-        self.linear_prediction_b = np.random.rand(len(vocab),)
+        self.linear_prediction_b = np.random.randn(len(vocab),)*0.02
         
     def forward(self , batch):
 
-        token_vectors = self.token_embedding[batch]
-        position_vectors = self.position_embedding[batch]
+        B , T = batch.shape
 
-        vector = token_vectors + position_vectors
+        token_vectors = self.token_embedding[batch]      # (B, T, 512)
+
+        pos = np.arange(T)
+        position_vectors = self.position_embedding[pos]  # (T, 512)
+
+        vector = token_vectors + position_vectors[None, : , :]
 
         x = vector
 
@@ -460,15 +478,27 @@ class Model:
         linear_prediction_w = self.token_embedding.T
         logit =  x @ linear_prediction_w + self.linear_prediction_b    
 
+        self.cache = x
         self.cache_ids = batch
 
         return logit
 
-    def  backward(self , dx):
+    def  backward(self , dlogit):
+ 
+        #change 11 : add a gradient from output token embedding
+        x = self.cache
+        B , T , V = dlogit.shape 
+        D = x.shape[-1]
+        
+        dlogit_flat = dlogit.reshape(-1 , V)
+        x_flat = x.reshape(-1 , D)
+
+        d_token_embedding_from_output = dlogit_flat.T @ x_flat
+
         #change 08: add  a gradient of linear prediction
-        d_linear_prediction_b = np.sum(dx, axis = (0,1))
+        d_linear_prediction_b = np.sum(dlogit_flat, axis = 0)
         #change 01
-        dx = dx @ self.token_embedding 
+        dx = dlogit @ self.token_embedding 
 
         for block in reversed(self.blocks):
             dx = block.backward(dx)
@@ -488,7 +518,7 @@ class Model:
                 d_position_embedding[t] += dx[b,t]
 
         self. embedding_gradient = {
-            "token_embedding": d_token_embedding,
+            "token_embedding": d_token_embedding + d_token_embedding_from_output,
             "position_embedding": d_position_embedding,
             "linear_prediction_b":d_linear_prediction_b
         }       
@@ -568,7 +598,7 @@ class CrossEntropyloss:
         dlogit = P.copy()
 
         for b in range(B):
-          dlogit[b, np.arange(T) , target[0]] -= 1
+          dlogit[b, np.arange(T) , target[b]] -= 1
           
         dlogit /= (B * T)
 
@@ -648,20 +678,32 @@ class AdamW:
        for p , new_p in zip(param , new_weight):
            p[:] = new_p
 
+class Inference:
+   def inference(prompt):
+      
+      
+      
 #training loop
-text = 'i so fucking love you very much'
+text = 'hello world hello world hello world hello world hello world'
+       
 
 tokenizer = Tokenizer()
 vocab = tokenizer.train(text)
 ids = tokenizer.encode(text)
-batch , target = tokenizer.batch(4 , 7)
 
-print(len(ids))
+print(f'len(ids){len(ids)}')
+print(f'ids{ids}')
 print(len(vocab))
 
-for i in range(10):
+model = Model()
+adamw = AdamW(model)
+loss_history = []
+fig , ax = plt.subplots()
 
- model = Model()
+for i in range(200):
+ 
+ batch , target = tokenizer.batch(5 , 2)
+
  logit = model.forward(batch)
 
  crossentropyloss = CrossEntropyloss()
@@ -669,11 +711,20 @@ for i in range(10):
 
  print(loss)
 
+ #update the loss curve in real time
+ loss_history.append(loss)
+
+ ax.clear()
+ ax.plot(loss_history)
+
+ ax.set_title("Loss Curve ")
+ ax.set_xlabel("step")
+ ax.set_ylabel("loss")
+
+ plt.pause(0.01)
+
  dlogit = crossentropyloss.backward()
 
  dx = model.backward(dlogit)
 
- adamw = AdamW(model)
  optimizer = adamw.step()
-
-
