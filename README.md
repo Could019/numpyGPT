@@ -8,7 +8,7 @@
 
           Vibe Learning • LLM From First Principles
 ```
-# numpyGPT: Building Large Language Models from First Principles
+# NumpyGPT: Building LLM from First Principles
 
 > **This is more than just a teaching project—it's a learning manifesto.**  
 > Through a Transformer model implemented entirely in NumPy, built from first-principles mathematical derivations, I want to demonstrate to every learner who dares to try: **Anyone with determination can master the core principles of deep learning from scratch.**
