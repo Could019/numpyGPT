@@ -72,6 +72,7 @@ attention_score = (Q @ K.T) / np.sqrt(d_k)  # Gradients normal now
 
 ## Part 2: Technical Architecture - From First Principles to Engineering
 
+![image](first principle.png)
 ### 2.1 Decomposing First Principles
 
 At the deepest level, we must answer two fundamental questions:
