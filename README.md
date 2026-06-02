@@ -1,3 +1,13 @@
+```text
+███╗   ██╗██╗   ██╗███╗   ███╗██████╗ ██╗   ██╗ ██████╗ ██████╗ ████████╗
+████╗  ██║██║   ██║████╗ ████║██╔══██╗╚██╗ ██╔╝██╔════╝ ██╔══██╗╚══██╔══╝
+██╔██╗ ██║██║   ██║██╔████╔██║██████╔╝ ╚████╔╝ ██║  ███╗██████╔╝   ██║
+██║╚██╗██║██║   ██║██║╚██╔╝██║██╔═══╝   ╚██╔╝  ██║   ██║██╔═══╝    ██║
+██║ ╚████║╚██████╔╝██║ ╚═╝ ██║██║        ██║   ╚██████╔╝██║        ██║
+╚═╝  ╚═══╝ ╚═════╝ ╚═╝     ╚═╝╚═╝        ╚═╝    ╚═════╝ ╚═╝        ╚═╝
+
+          Vibe Learning • LLM From First Principles
+```
 # numpyGPT: Building Large Language Models from First Principles
 
 > **This is more than just a teaching project—it's a learning manifesto.**  
@@ -72,7 +82,7 @@ attention_score = (Q @ K.T) / np.sqrt(d_k)  # Gradients normal now
 
 ## Part 2: Technical Architecture - From First Principles to Engineering
 
-![image](first principle.png)
+
 ### 2.1 Decomposing First Principles
 
 At the deepest level, we must answer two fundamental questions:
@@ -83,23 +93,23 @@ At the deepest level, we must answer two fundamental questions:
 Mathematical Perspective:
 ┌─────────────────────────────────────────────────────────┐
 │  Large Language Model = Parameterized Function Family   │
-│                                                          │
-│  F_θ(x) : x ∈ ℝ^(B×T) → y ∈ ℝ^(B×T×V)                 │
-│                                                          │
-│  Where:                                                  │
+│                                                         │
+│  F_θ(x) : x ∈ ℝ^(B×T) → y ∈ ℝ^(B×T×V)                  │
+│                                                         │
+│  Where:                                                 │
 │    x: sequence of token IDs                             │
 │    θ: learnable parameters (weights and biases)         │
 │    y: logits (unnormalized probabilities)               │
-│    B: batch size, T: sequence length, V: vocab size    │
+│    B: batch size, T: sequence length, V: vocab size     │
 └─────────────────────────────────────────────────────────┘
 
 Computing Perspective:
 ┌─────────────────────────────────────────────────────────┐
-│  AI has only 3 core operations:                          │
-│  ├─ Matrix multiplication    (x @ W)      Cost: O(n³)  │
-│  ├─ Nonlinear activation    (ReLU, Softmax) Cost: O(n) │
-│  └─ Gradient computation    (∂L/∂w)      Cost: O(n³)   │
-│                                                          │
+│  AI has only 3 core operations:                         │
+│  ├─ Matrix multiplication    (x @ W)      Cost: O(n³)   │
+│  ├─ Nonlinear activation    (ReLU, Softmax) Cost: O(n)  │
+│  └─ Gradient computation    (∂L/∂w)      Cost: O(n³)    │
+│                                                         |
 │  There's no magic—just clever combinations of these.    │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -125,7 +135,37 @@ The best way to optimize algorithms is to deploy on GPU
 numpyGPT follows a strict layered design principle:
 
 ```
-![first principles](images/first%20principle.png)
+┌────────────────────────────────────────────────────────────┐
+│  Layer 5: Complete System (System Level)                   │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ numpyGPT = Tokenizer + Model + Loss + Optimizer      │  │
+│  └──────────────────────────────────────────────────────┘  │
+│            ↑                                               | 
+├────────────────────────────────────────────────────────────┤
+│  Layer 4: Model Components (Model Level)                   │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ TransformerBlock = Attention + LayerNorm + FFN       │  │
+│  │ Model = Embedding + Stack(TransformerBlock)          │  │
+│  └──────────────────────────────────────────────────────┘  │
+│            ↑                                               │
+├────────────────────────────────────────────────────────────┤
+│  Layer 3: Functional Modules (Module Level)                │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ • Attention  • LayerNorm  • FFN  • Loss • Optimizer  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│            ↑                                               │
+├────────────────────────────────────────────────────────────┤
+│  Layer 2: Basic Operations (Operation Level)               │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ Matrix ops · Shape ops · Math functions · Stability  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│            ↑                                               │
+├────────────────────────────────────────────────────────────┤
+│  Layer 1: Mathematical Foundation                          │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ Linear Algebra · Calculus · Probability · Optimization  │
+│  └──────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────┘
 
 ---
 
@@ -139,35 +179,35 @@ numpyGPT follows a strict layered design principle:
 Complete Multi-Head Attention Mathematical Expression:
 
 1. Linear Projections:
-   Q = XW_Q ∈ ℝ^(B×T×d_model)
-   K = XW_K ∈ ℝ^(B×T×d_model)
-   V = XW_V ∈ ℝ^(B×T×d_model)
+  - Q = XW_Q ∈ ℝ^(B×T×d_model)
+  - K = XW_K ∈ ℝ^(B×T×d_model)
+  - V = XW_V ∈ ℝ^(B×T×d_model)
 
 2. Multi-Head Splitting:
-   Q_h = Split(Q) ∈ ℝ^(B×T×d_h), where d_h = d_model/h
+  - Q_h = Split(Q) ∈ ℝ^(B×T×d_h), where d_h = d_model/h
 
 3. Single Head Attention Scores:
-   S = Q_h · K_h^T / √d_h ∈ ℝ^(B×T×T)
+  - S = Q_h · K_h^T / √d_h ∈ ℝ^(B×T×T)
    
 4. Causal Masking:
-   S_masked = S + M, where M_{ij} = {0 if i≥j; -∞ if i<j}
+  - S_masked = S + M, where M_{ij} = {0 if i≥j; -∞ if i<j}
 
 5. Attention Weights:
-   A = softmax(S_masked) ∈ ℝ^(B×T×T)
+  - A = softmax(S_masked) ∈ ℝ^(B×T×T)
    
 6. Weighted Aggregation:
-   O_h = A · V_h ∈ ℝ^(B×T×d_h)
+  - O_h = A · V_h ∈ ℝ^(B×T×d_h)
 
 7. Multi-Head Concatenation:
-   Output = Concat(O_1, ..., O_h) · W_O + b_O
+  - Output = Concat(O_1, ..., O_h) · W_O + b_O
 
 Gradient Backpropagation (Key Derivations):
-∂L/∂V_h = A^T · (∂L/∂O_h)
-∂L/∂A = (∂L/∂O_h) · V_h^T
-∂L/∂S_masked = A ⊙ (∂L/∂A - 1^T·(∂L/∂A ⊙ A))  // Softmax gradient
-∂L/∂(QK^T) = ∂L/∂S_masked / √d_h
-∂L/∂Q_h = (∂L/∂(QK^T)) · K_h
-∂L/∂K_h = (∂L/∂(QK^T))^T · Q_h
+- ∂L/∂V_h = A^T · (∂L/∂O_h)
+- ∂L/∂A = (∂L/∂O_h) · V_h^T
+- ∂L/∂S_masked = A ⊙ (∂L/∂A - 1^T·(∂L/∂A ⊙ A))  // Softmax gradient
+- ∂L/∂(QK^T) = ∂L/∂S_masked / √d_h
+- ∂L/∂Q_h = (∂L/∂(QK^T)) · K_h
+- ∂L/∂K_h = (∂L/∂(QK^T))^T · Q_h
 ```
 
 **Code Implementation (Clear Mapping):**
@@ -315,18 +355,18 @@ class Attention:
 
 **Mathematical Formula:**
 
-```
+
 Layer Normalization with Residual Connection:
 
 Forward Pass:
-1. Residual connection: z = y + x
-2. Batch statistics: μ = (1/d) Σ z_i, σ² = (1/d) Σ (z_i - μ)²
-3. Normalization: ẑ = (z - μ) / √(σ² + ε)
-4. Scale and shift: output = γ ⊙ ẑ + β
+- 1. Residual connection: z = y + x
+- 2. Batch statistics: μ = (1/d) Σ z_i, σ² = (1/d) Σ (z_i - μ)²
+- 3. Normalization: ẑ = (z - μ) / √(σ² + ε)
+- 4. Scale and shift: output = γ ⊙ ẑ + β
 
 Backward Pass (Most Complex Part):
 Key is handling batch statistics recomputation—gradients flow through mean and variance
-```
+
 
 **Code Implementation:**
 
@@ -408,23 +448,23 @@ class Layernorm:
 
 **Mathematical Formula:**
 
-```
+
 Feed-Forward Network (FFN):
 
 Architecture: Dense(512→2048) → ReLU → Dense(2048→512)
 
 Forward Pass:
-z₁ = xW₁ + b₁                 // First layer: expand dimensions
-a₁ = max(0, z₁)               // ReLU activation
-z₂ = a₁W₂ + b₂                // Second layer: compress dimensions
+- z₁ = xW₁ + b₁                 // First layer: expand dimensions
+- a₁ = max(0, z₁)               // ReLU activation
+- z₂ = a₁W₂ + b₂                // Second layer: compress dimensions
 
 Backward Pass (Key: ReLU Gradient):
-∂L/∂z₂ = upstream_gradient
-∂L/∂W₂ = a₁^T · ∂L/∂z₂
-∂L/∂a₁ = ∂L/∂z₂ · W₂^T
-∂L/∂z₁ = ∂L/∂a₁ ⊙ (z₁ > 0)  // ReLU: only propagate positive positions
-∂L/∂W₁ = x^T · ∂L/∂z₁
-```
+- ∂L/∂z₂ = upstream_gradient
+- ∂L/∂W₂ = a₁^T · ∂L/∂z₂
+- ∂L/∂a₁ = ∂L/∂z₂ · W₂^T
+- ∂L/∂z₁ = ∂L/∂a₁ ⊙ (z₁ > 0)  // ReLU: only propagate positive positions
+- ∂L/∂W₁ = x^T · ∂L/∂z₁
+  
 
 **Code Implementation:**
 
