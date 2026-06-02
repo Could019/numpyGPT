@@ -166,7 +166,7 @@ numpyGPT follows a strict layered design principle:
 │  │ Linear Algebra · Calculus · Probability · Optimization  │
 │  └──────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────┘
-
+```
 ---
 
 ### 2.3 Mathematical to Code Derivation Path
@@ -175,7 +175,7 @@ numpyGPT follows a strict layered design principle:
 
 **Mathematical Formula (First Principles):**
 
-```
+
 Complete Multi-Head Attention Mathematical Expression:
 
 1. Linear Projections:
