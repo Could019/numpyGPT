@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ```text
 ███╗   ██╗██╗   ██╗███╗   ███╗██████╗ ██╗   ██╗ ██████╗ ██████╗ ████████╗
 ████╗  ██║██║   ██║████╗ ████║██╔══██╗╚██╗ ██╔╝██╔════╝ ██╔══██╗╚══██╔══╝
@@ -1176,3 +1177,4 @@ It's about experiencing the joy of understanding each new concept.
 If I can do it, you can too.
 
 Start now. 🚀
+=======
