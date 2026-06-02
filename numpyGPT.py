@@ -134,7 +134,15 @@ class Tokenizer:
     
     def decode(self , ids):
        
-        tokens = [self.itos[i] for i in ids]
+        tokens = []
+        for i in ids:
+           
+           token = self.itos[i]
+
+           if token == self.EOS_TOKEN:
+              break
+            
+           tokens.append(token)
 
         text = b"".join(tokens).decode("utf-8")
 
@@ -574,7 +582,42 @@ class Model:
                     grad.append(module.gradients[name])
 
         return grad
-                
+
+    def save(self , path):
+        
+        data = self.paramters()
+
+        with open(path , "wb") as f:
+           pickle.dump(data , f)
+
+    def load(self , path):
+
+       with open(path , "rb") as f:
+          save_params = pickle.load(f)
+
+       current_params = self.paramters()
+
+       for sp , cp in zip(save_params , current_params):
+          cp[:] = sp
+
+    def inference(self , prompt):
+
+        ids = np.array(tokenizer.encode(prompt))[np.newaxis,:]
+
+        while True:
+         logit = self.forward(ids)#(1, T, V)
+         last_logit = logit[:, -1, :]#(1, V)
+         probs = softmax(last_logit, axis = -1)
+
+         next_id = np.random.choice(probs.shape[-1] , p = probs[0])
+         next_token = np.array([[next_id]])
+         ids = np.concatenate([ids, next_token], axis = 1)
+
+         if next_id == tokenizer.stoi[tokenizer.EOS_TOKEN]:
+            break
+         
+        return tokenizer.decode(ids[0]) 
+
 class CrossEntropyloss:
 
     def forward(self , logit , target):
@@ -678,15 +721,10 @@ class AdamW:
        for p , new_p in zip(param , new_weight):
            p[:] = new_p
 
-class Inference:
-   def inference(prompt):
-      
-      
-      
+                 
 #training loop
 text = 'hello world hello world hello world hello world hello world'
        
-
 tokenizer = Tokenizer()
 vocab = tokenizer.train(text)
 ids = tokenizer.encode(text)
@@ -697,12 +735,12 @@ print(len(vocab))
 
 model = Model()
 adamw = AdamW(model)
-loss_history = []
-fig , ax = plt.subplots()
+#loss_history = []
+#fig , ax = plt.subplots()
 
-for i in range(200):
+for i in range(10):
  
- batch , target = tokenizer.batch(5 , 2)
+ batch , target = tokenizer.batch(5 , 8)
 
  logit = model.forward(batch)
 
@@ -712,19 +750,23 @@ for i in range(200):
  print(loss)
 
  #update the loss curve in real time
- loss_history.append(loss)
+ #loss_history.append(loss)
 
- ax.clear()
- ax.plot(loss_history)
+ #ax.clear()
+ #ax.plot(loss_history)
 
- ax.set_title("Loss Curve ")
- ax.set_xlabel("step")
- ax.set_ylabel("loss")
+ #ax.set_title("Loss Curve ")
+ #ax.set_xlabel("step")
+ #ax.set_ylabel("loss")
 
- plt.pause(0.01)
+ #plt.pause(0.01)
 
  dlogit = crossentropyloss.backward()
 
  dx = model.backward(dlogit)
 
  optimizer = adamw.step()
+
+prompt = "hello"
+
+print(model.inference(prompt))
